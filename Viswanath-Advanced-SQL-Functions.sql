@@ -1,4 +1,3 @@
--- Active: 1745835281349@@192.168.15.71@9033@music_system
 USE `music_system`;
 
 -- Top Selling Track with Most Revenue
