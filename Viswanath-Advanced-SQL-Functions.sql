@@ -1,4 +1,77 @@
+-- Active: 1745835281349@@192.168.15.71@9033@music_system
 USE `music_system`;
+
+-- Top Selling Track with Most Revenue
+
+WITH
+    TrackSales AS (
+        SELECT t.track_id, t.name AS track_name, SUM(il.unit_price * il.quantity) AS total_sales
+        FROM track t
+            JOIN invoice_line il ON t.track_id = il.track_id
+        GROUP BY
+            t.track_id,
+            t.name
+    )
+SELECT
+    track_id,
+    track_name,
+    total_sales,
+    DENSE_RANK() OVER (
+        ORDER BY total_sales DESC
+    ) AS sales_rank
+FROM TrackSales
+ORDER BY sales_rank;
+
+-- Tracks with Most Invoices Sold
+
+WITH
+    TrackInvoiceSales AS (
+        SELECT
+            i.invoice_date,
+            t.track_id,
+            t.name AS track_name,
+            il.unit_price * il.quantity AS sales_amount
+        FROM
+            invoice i
+            JOIN invoice_line il ON i.invoice_id = il.invoice_id
+            JOIN track t ON il.track_id = t.track_id
+    )
+SELECT
+    track_id,
+    track_name,
+    COUNT(DISTINCT i.invoice_id) AS num_invoices_sold
+FROM
+    TrackInvoiceSales t
+    JOIN invoice i ON t.track_id = t.track_id
+GROUP BY
+    t.track_id,
+    t.track_name
+ORDER BY num_invoices_sold DESC;
+
+-- Tracks with Sales Trend (Monthly)
+
+WITH
+    MonthlyTrackSales AS (
+        SELECT
+            DATE_FORMAT(i.invoice_date, '%Y-%m') AS sale_month,
+            t.track_id,
+            t.name AS track_name,
+            SUM(il.unit_price * il.quantity) AS monthly_sales
+        FROM
+            invoice i
+            JOIN invoice_line il ON i.invoice_id = il.invoice_id
+            JOIN track t ON il.track_id = t.track_id
+        GROUP BY
+            t.track_id,
+            t.name
+    )
+SELECT
+    sale_month,
+    track_id,
+    track_name,
+    monthly_sales
+FROM MonthlyTrackSales
+ORDER BY sale_month, monthly_sales DESC;
 
 -- This query focuses on identifying top-performing tracks and albums, along with a rolling 3-month sales trend.
 
@@ -48,7 +121,7 @@ FROM MonthlySales ms;
 WITH
     MonthlySales AS (
         SELECT
-            DATE_FORMAT('%Y-%m', i.invoice_date) AS sales_month,
+            DATE_FORMAT(i.invoice_date, '%Y-%m') AS sales_month,
             t.track_id,
             t.name,
             SUM(il.unit_price * il.quantity) AS monthly_sales
@@ -57,9 +130,9 @@ WITH
             JOIN invoice_line il ON i.invoice_id = il.invoice_id
             JOIN track t ON il.track_id = t.track_id
         GROUP BY
-            DATE_FORMAT('%Y-%m', i.invoice_date),
+            DATE_FORMAT(i.invoice_date, '%Y-%m'),
             t.track_id
-        ORDER BY DATE_FORMAT('%Y-%m', i.invoice_date)
+        ORDER BY DATE_FORMAT(i.invoice_date, '%Y-%m')
     )
 SELECT
     sales_month,
@@ -99,13 +172,13 @@ SELECT
     ) AS sales_rank
 FROM TrackSales;
 
--- This query calculates the moving average of sales for each track over a 3-month window using an OVER clause with PARTITION BY and ORDER BY. 
+-- This query calculates the moving average of sales for each track over a 3-month window using an OVER clause with PARTITION BY and ORDER BY.
 -- It also ranks the tracks within each month using DENSE_RANK() within a window function to get the top 3 tracks based on sales for each month.
 
 WITH
     MonthlyTrackSales AS (
         SELECT
-            DATE_FORMAT('%Y-%m', i.invoice_date) AS sale_month, -- Extract year and month
+            DATE_FORMAT(i.invoice_date, '%Y-%m') AS sale_month, -- Extract year and month
             t.track_id,
             t.name AS track_name,
             SUM(il.unit_price * il.quantity) AS monthly_sales
